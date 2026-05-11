@@ -154,60 +154,64 @@ Once linked, you should see all 18 `Q*` nodes appear in your `N` (nodes)
 table and be able to `C QA0HUB-7`, `C QD0CHT-7`, `C QE0BBS-7` etc. — and
 each step beyond Aberdeen should route across the synthetic RF backbone.
 
-## Reaching the synthetic nodes from a browser
+## Reaching the synthetic nodes
 
-Every linbpq container exposes its HTTP and Telnet ports on the host:
+Every linbpq container publishes three TCP ports on the host:
+**HTTP** (BPQ web UI), **Telnet** (BPQ node console), and **FBB**
+(QtTermTCP's "BPQ via FBB" connection mode). Credentials and the
+top-level sysop password are identical on every node — see below
+the table.
 
-| Node     | HTTP                  | Telnet              |
-|----------|------------------------|---------------------|
-| QA0ABN   | http://localhost:18001 | telnet localhost 18101 |
-| QA0ABS   | http://localhost:18002 | telnet localhost 18102 |
-| QA0BBS   | http://localhost:18003 | telnet localhost 18103 |
-| QA0HUB   | http://localhost:18004 | telnet localhost 18104 |
-| QB0BRI   | http://localhost:18005 | telnet localhost 18105 |
-| QB0BBS   | http://localhost:18006 | telnet localhost 18106 |
-| QB0HUB   | http://localhost:18007 | telnet localhost 18107 |
-| QC0CAM   | http://localhost:18008 | telnet localhost 18108 |
-| QC0CAS   | http://localhost:18009 | telnet localhost 18109 |
-| QC0HUB   | http://localhost:18010 | telnet localhost 18110 |
-| QD0DUR   | http://localhost:18011 | telnet localhost 18111 |
-| QD0DUS   | http://localhost:18012 | telnet localhost 18112 |
-| QD0CHT   | http://localhost:18013 | telnet localhost 18113 |
-| QD0HUB   | http://localhost:18014 | telnet localhost 18114 |
-| QE0EXE   | http://localhost:18015 | telnet localhost 18115 |
-| QE0EXS   | http://localhost:18016 | telnet localhost 18116 |
-| QE0BBS   | http://localhost:18017 | telnet localhost 18117 |
-| QE0HUB   | http://localhost:18018 | telnet localhost 18118 |
+| Node     | Alias  | Call       | HTTP                   | Telnet  | FBB     |
+|----------|--------|------------|------------------------|---------|---------|
+| QA0ABN   | ABENOR | QA0ABN-7   | http://localhost:18001 | 18101   | 18201   |
+| QA0ABS   | ABESTH | QA0ABS-7   | http://localhost:18002 | 18102   | 18202   |
+| QA0BBS   | ABEBBS | QA0BBS-7   | http://localhost:18003 | 18103   | 18203   |
+| QA0HUB   | ABEHUB | QA0HUB-7   | http://localhost:18004 | 18104   | 18204   |
+| QB0BRI   | BRIMAI | QB0BRI-7   | http://localhost:18005 | 18105   | 18205   |
+| QB0BBS   | BRIBBS | QB0BBS-7   | http://localhost:18006 | 18106   | 18206   |
+| QB0HUB   | BRIHUB | QB0HUB-7   | http://localhost:18007 | 18107   | 18207   |
+| QC0CAM   | CAMNOR | QC0CAM-7   | http://localhost:18008 | 18108   | 18208   |
+| QC0CAS   | CAMSTH | QC0CAS-7   | http://localhost:18009 | 18109   | 18209   |
+| QC0HUB   | CAMHUB | QC0HUB-7   | http://localhost:18010 | 18110   | 18210   |
+| QD0DUR   | DURNOR | QD0DUR-7   | http://localhost:18011 | 18111   | 18211   |
+| QD0DUS   | DURSTH | QD0DUS-7   | http://localhost:18012 | 18112   | 18212   |
+| QD0CHT   | DURCHT | QD0CHT-7   | http://localhost:18013 | 18113   | 18213   |
+| QD0HUB   | DURHUB | QD0HUB-7   | http://localhost:18014 | 18114   | 18214   |
+| QE0EXE   | EXENOR | QE0EXE-7   | http://localhost:18015 | 18115   | 18215   |
+| QE0EXS   | EXESTH | QE0EXS-7   | http://localhost:18016 | 18116   | 18216   |
+| QE0BBS   | EXEBBS | QE0BBS-7   | http://localhost:18017 | 18117   | 18217   |
+| QE0HUB   | EXEHUB | QE0HUB-7   | http://localhost:18018 | 18118   | 18218   |
 
-Default login on every node: `admin` / `changeme` (sysop). Edit each
-`nodes/<call>/bpq32.cfg` to change.
+**Credentials (same on every node):**
 
-net-sim's own topology dashboard is at <http://localhost:8080>.
+| Where                 | Username | Password   |
+|-----------------------|----------|------------|
+| HTTP web UI / sysop   | `admin`  | `admin`    |
+| Telnet console        | `user`   | `pass`     |
+| FBB (QtTermTCP)       | `user`   | `pass`     |
+| Sysop `?PASS` reply   | —        | `letmein`  |
 
-Live map (DEFCON-flavour situation display) at
-<http://localhost:8080/map> — shows the topology clustered by detected
-town, lights links up as they carry traffic, animates per-frame pulses
-along each link, and displays a HUD with events-per-second, TX-active
-count, collision/capture counters, and a sim-CPU sparkline. The
-external attach point (USEREXT) is rendered as a distinct amber
-diamond rather than a regular station so it reads as "outside world."
+Both `admin` and `user` are flagged `SYSOP` so sysop commands work
+either way; the split exists so the docs can call them "HTTP" vs
+"console" credentials without further nuance.
 
-## QtTermTCP / BPQ FBB login
+To change them, edit each `nodes/<call>/bpq32.cfg`'s Telnet `PORT`
+block. Don't expose these ports to anything but localhost — these
+defaults are deliberately weak.
 
-Two nodes expose BPQ's FBB-style TCP port (`FBBPORT`) for QtTermTCP's
-"BPQ via FBB" connection mode — `QD0HUB` and `QA0ABS`. All others have
-only Telnet + HTTP. Credentials are identical:
+### Live map and topology dashboard
 
-| Node | FBB port (host) | Telnet port (host) | Username | Password |
-|---|---|---|---|---|
-| QD0HUB-7 | 18214 | 18114 | `tom` | `packet` |
-| QA0ABS-7 | 18202 | 18102 | `tom` | `packet` |
+net-sim's own dashboards are served by the netsim container:
 
-For other nodes, use QtTermTCP's plain "Telnet" mode against the host
-port listed in the table above (host port `18101` for QA0ABN, `18102`
-for QA0ABS, etc.) with the same credentials.
-
-Sysop `?PASS` challenge is `letmein` on the FBB-enabled nodes.
+* <http://localhost:8080> — topology editor / Start/Stop/Restart
+* <http://localhost:8080/map> — live DEFCON-flavour situation display.
+  Topology clustered by detected town, links light up as they carry
+  traffic, per-frame missile-arc pulses along each edge, HUD with
+  events-per-second, TX-active count, collision/capture counters, and
+  a sim-CPU sparkline. The external attach point (USEREXT) is rendered
+  as a distinct amber diamond rather than a regular station so it
+  reads as "outside world."
 
 ## Useful sanity checks
 
