@@ -77,6 +77,14 @@ services:
     ports: [ "18004:8008", "18104:8010", "18204:8011" ]
     command: ["mail"]
 
+  # Gateway: NETROM-blocking bridge between the synthetic Aberdeen
+  # channel and the USEREXT private channel. See nodes/QAGATE/bpq32.cfg.
+  QAGATE:
+    <<: *linbpq
+    container_name: QAGATE
+    volumes: [ "./nodes/QAGATE:/data" ]
+    ports: [ "18031:8008", "18131:8010", "18231:8011" ]
+
   # ------------------------------------------------------------------
   # Bristol (QB*) — town channel: netsim ports 8005-8007
   # ------------------------------------------------------------------

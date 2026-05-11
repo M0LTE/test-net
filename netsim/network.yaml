@@ -44,6 +44,14 @@ nodes:
   - id: QA0XRT
     ports:
       - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8019 }
+  # Gateway station: bridges the synthetic Aberdeen channel to USEREXT's
+  # private channel. NETROM is disabled on its EXT port (BPQ QUALITY=0)
+  # so synthetic NODES broadcasts don't leak out to the real packet node
+  # the operator attaches at host port 8100.
+  - id: QAGATE
+    ports:
+      - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8031 }   # Aberdeen side
+      - { id: ext, modem: { mode: afsk1200 }, kiss_port: 8032 }   # private user-facing channel
 
   # ---------- Bristol town (QB*) ----------
   - id: QB0BRI
@@ -116,12 +124,6 @@ links:
   - { from: QA0HUB.vhf, to: QA0ABS.vhf,    loss_db: 17  }
   - { from: QA0ABN.vhf, to: QA0ABS.vhf,    loss_db: 47 }  # hidden pair
   - { from: QA0ABS.vhf, to: QA0ABN.vhf,    loss_db: 47 }  # hidden pair
-  - { from: USEREXT.vhf, to: QA0HUB.vhf,   loss_db: 17  }
-  - { from: QA0HUB.vhf,  to: USEREXT.vhf,  loss_db: 17  }
-  - { from: USEREXT.vhf, to: QA0ABN.vhf,   loss_db: 22 }
-  - { from: QA0ABN.vhf,  to: USEREXT.vhf,  loss_db: 22 }
-  - { from: USEREXT.vhf, to: QA0ABS.vhf,   loss_db: 22 }
-  - { from: QA0ABS.vhf,  to: USEREXT.vhf,  loss_db: 22 }
   # XRouter station joins the Aberdeen channel — heard by all peers.
   - { from: QA0XRT.vhf, to: QA0HUB.vhf,    loss_db: 17 }
   - { from: QA0HUB.vhf, to: QA0XRT.vhf,    loss_db: 17 }
@@ -129,8 +131,26 @@ links:
   - { from: QA0ABN.vhf, to: QA0XRT.vhf,    loss_db: 22 }
   - { from: QA0XRT.vhf, to: QA0ABS.vhf,    loss_db: 22 }
   - { from: QA0ABS.vhf, to: QA0XRT.vhf,    loss_db: 22 }
-  - { from: QA0XRT.vhf, to: USEREXT.vhf,   loss_db: 25 }
-  - { from: USEREXT.vhf, to: QA0XRT.vhf,   loss_db: 25 }
+  # Gateway joins the Aberdeen channel on its `vhf` side.
+  - { from: QAGATE.vhf, to: QA0HUB.vhf,   loss_db: 17 }
+  - { from: QA0HUB.vhf,  to: QAGATE.vhf,  loss_db: 17 }
+  - { from: QAGATE.vhf, to: QA0ABN.vhf,   loss_db: 22 }
+  - { from: QA0ABN.vhf,  to: QAGATE.vhf,  loss_db: 22 }
+  - { from: QAGATE.vhf, to: QA0ABS.vhf,   loss_db: 22 }
+  - { from: QA0ABS.vhf,  to: QAGATE.vhf,  loss_db: 22 }
+  - { from: QAGATE.vhf, to: QA0XRT.vhf,   loss_db: 22 }
+  - { from: QA0XRT.vhf,  to: QAGATE.vhf,  loss_db: 22 }
+
+  # ====================================================================
+  # USEREXT private channel — two stations only: USEREXT (host-attached
+  # KISS port 8100 for the operator's real packet node) and the gateway
+  # QAGATE on its `ext` port. No other synthetic station is on this
+  # channel, so no synthetic NODES broadcasts leak onto it. The gateway
+  # has QUALITY=0 on its ext port in BPQ, so it doesn't *originate*
+  # NODES broadcasts here either. Direct AX.25 `C QAGATE-7` works.
+  # ====================================================================
+  - { from: USEREXT.vhf,  to: QAGATE.ext, loss_db: 5 }
+  - { from: QAGATE.ext,  to: USEREXT.vhf, loss_db: 5 }
 
   # ====================================================================
   # Bristol town channel — simple 3-way mesh, all hear each other well.

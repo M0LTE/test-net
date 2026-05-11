@@ -1,7 +1,7 @@
 # Synthetic packet-radio test network
 
 A docker-compose stack that builds a small but varied "RF" network you can
-attach your real packet node to. Inside the stack there are 14 BPQ
+attach your real packet node to. Inside the stack there are 15 BPQ
 stations and 2 XRouter stations across 5 simulated towns, connected
 by 5 inter-town backbone links. Some of those stations also host
 applications — BBS Mail in Aberdeen, Bristol and Exeter; a chat server
@@ -10,6 +10,13 @@ callsign, the way real packet sites do it. The XRouter nodes
 (`QA0XRT-1` on the Aberdeen channel, `QC0XRT-1` on the Cambridge
 channel) speak NETROM with their BPQ neighbours so the two
 implementations interoperate transparently.
+
+A 15th station, **QAGATE-7**, sits on its own private channel between
+the synthetic mesh and the host-published KISS port your real node
+attaches to. NETROM is disabled on QAGATE's user-facing port, so the
+synthetic nodes table is not leaked into your real node. See
+[Attaching your real packet node](#attaching-your-real-packet-node)
+for what this means in practice.
 
 All callsigns/aliases start with `Q` so they cannot collide with real
 licensed amateur callsigns.
@@ -35,8 +42,13 @@ on the same machine as the Aberdeen hub.
                   ┌──────────────────────────────────────┐
                   │                                      │
   ABERDEEN ─9k6─ DURHAM ─9k6─ CAMBRIDGE ─9k6─ BRISTOL ─9k6─ EXETER
-   (4 nodes)    (4 nodes)    (3 nodes)       (3 nodes)     (4 nodes)
+   (5 nodes)    (4 nodes)    (3 nodes)       (3 nodes)     (4 nodes)
       ▲
+      │ Aberdeen 2m
+      │
+   QAGATE-7   gateway station (NETROM disabled on its user-facing port)
+      ▲
+      │ private channel
       │
    YOUR REAL NODE attaches here  (host TCP/8100, KISS over TCP)
 ```
@@ -48,10 +60,12 @@ on the same machine as the Aberdeen hub.
   as a KISS-over-TCP port. The container's `network.yaml` describes channel
   membership and per-pair path loss (so hidden-node and FM-capture effects
   are modelled).
-* **14 linbpq containers** — one per `Q*` station. Each runs `m0lte/linbpq`
+* **15 linbpq containers** — one per `Q*` station. Each runs `m0lte/linbpq`
   and attaches its `bpq32.cfg` PORT(s) to the appropriate netsim KISS
   port(s). Four of them also host BPQ Mail or BPQ Chat (started with
-  the corresponding extra `command:` in compose).
+  the corresponding extra `command:` in compose). One — `QAGATE-7` —
+  is a gateway station that bridges the synthetic Aberdeen channel to
+  the private channel your real node attaches on.
 
 ### Stations
 
@@ -60,6 +74,7 @@ on the same machine as the Aberdeen hub.
 | QA0ABN-7    | ABENOR | Aberdeen   | User                      | 1      | —                         |
 | QA0ABS-7    | ABESTH | Aberdeen   | User                      | 1      | —                         |
 | QA0HUB-7    | ABEHUB | Aberdeen   | Hub (town + 9k6 backbone) | 2      | BBS at `QA0HUB-1` (`BBS`) |
+| QAGATE-7    | GATE   | Aberdeen   | Gateway to real node      | 2      | —                         |
 | QB0BRI-7    | BRIMAI | Bristol    | User                      | 1      | —                         |
 | QB0HUB-7    | BRIHUB | Bristol    | Hub                       | 4      | BBS at `QB0HUB-1` (`BBS`) |
 | QC0CAM-7    | CAMNOR | Cambridge  | User                      | 1      | —                         |
@@ -151,10 +166,21 @@ packet node, add a KISS-over-TCP port pointing at:
 ```
 host:   <docker-host-ip>   (e.g. 127.0.0.1 if running locally)
 port:   8100
-mode:   AFSK 1200 (you'll appear on the Aberdeen town channel)
+mode:   AFSK 1200
 ```
 
-In linbpq, that looks like:
+You land on a **private 2-station channel** with `QAGATE-7` (the
+gateway). No other synthetic station is on this channel, and QAGATE
+has `QUALITY=0` on its side of it, so:
+
+* No synthetic NETROM broadcasts (`NODES`, `INP3`, etc.) reach your
+  real node. Your `N` table stays clean — only what you discover by
+  connecting outwards through QAGATE shows up.
+* No NETROM peering forms over this link either. You reach the
+  synthetic mesh by **connecting at the AX.25 layer to `QAGATE-7`**
+  and then `C`-ing onwards from QAGATE's node prompt.
+
+In linbpq, the port looks like:
 
 ```
 PORT
@@ -165,19 +191,31 @@ PORT
  TCPPORT=8100
  SPEED=1200
  CHANNEL=A
- QUALITY=192
+ QUALITY=0          ; gateway has Q=0 too — no NETROM either way
  MAXFRAME=4
  PACLEN=120
 ENDPORT
 ```
 
-Once linked, all 14 station node calls plus their hosted-application
-aliases (`BBS:QA0HUB-1`, `BBS:QB0HUB-1`, `BBS:QE0HUB-1`, `CHT:QD0HUB-2`)
-should appear in your `N` (nodes) table. From any station you can
-`C QA0HUB-7` to drop into the Aberdeen hub's node prompt, `C BBS`
-(via NETROM) or `C QA0HUB-1` to land in the Aberdeen BBS, `C CHT`
-or `C QD0HUB-2` to land in the Durham chat — each cross-town hop
-travels the synthetic backbone.
+Then from your real node:
+
+```
+C QAGATE-7        → lands in QAGATE's node prompt; CTEXT lists
+                    reachable synthetic nodes
+C QA0HUB-7        → from QAGATE, hop into Aberdeen hub
+C BBS             → from QA0HUB, the Aberdeen BBS (= QA0HUB-1)
+C CHT             → from any synthetic hub, the Durham chat
+                    (= QD0HUB-2)
+```
+
+Each cross-town hop travels the synthetic backbone.
+
+If you'd prefer your real node to **see** the synthetic NODES table
+(this used to be the default), set `QUALITY=192` on your attach port
+*and* change QAGATE's user-facing port to `QUALITY=192` in
+`nodes/QAGATE/bpq32.cfg`. The synthetic nodes will then learn about
+your real node and route to it as a NETROM neighbour, and your N
+table will fill up with synthetic entries.
 
 ## Reaching the synthetic nodes
 
@@ -192,6 +230,7 @@ the table.
 | QA0ABN   | ABENOR | QA0ABN-7   | http://localhost:18001 | 18101   | 18201   |
 | QA0ABS   | ABESTH | QA0ABS-7   | http://localhost:18002 | 18102   | 18202   |
 | QA0HUB   | ABEHUB | QA0HUB-7   | http://localhost:18004 | 18104   | 18204   |
+| QAGATE   | GATE   | QAGATE-7   | http://localhost:18031 | 18131   | 18231   |
 | QB0BRI   | BRIMAI | QB0BRI-7   | http://localhost:18005 | 18105   | 18205   |
 | QB0HUB   | BRIHUB | QB0HUB-7   | http://localhost:18007 | 18107   | 18207   |
 | QC0CAM   | CAMNOR | QC0CAM-7   | http://localhost:18008 | 18108   | 18208   |
