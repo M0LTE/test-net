@@ -1,0 +1,33 @@
+# Per-linbpq runtime state — created inside each nodes/<call>/ bind-mount
+# at startup. Not part of the configuration; safe to delete between runs.
+nodes/*/BPQNODES.dat
+nodes/*/MHSave.txt
+nodes/*/HTML/
+nodes/*/logs/
+nodes/*/*.mes
+nodes/*/*.log
+nodes/*/Mail/
+nodes/*/Chat/
+nodes/*/WP.dat
+nodes/*/Statistics.txt
+# BPQ Mail / BBS state — only generated when linbpq runs with `mail`.
+# Editing these by hand is not how you configure the BBS.
+nodes/*/DIRMES.SYS*
+nodes/*/WFBID.SYS*
+nodes/*/linmail.cfg
+nodes/*/linmail.cfg.*
+nodes/*/log*BBS*.txt
+nodes/*/log*Chat*.txt
+nodes/*/Chat/
+nodes/*/chatconfig.cfg
+nodes/*/chatconfig.cfg.*
+
+# Claude Code session scratch
+.claude/
+
+# Editor cruft
+.vscode/
+.idea/
+*~
+*.swp
+.DS_Store

@@ -1,0 +1,178 @@
+# Synthetic "RF" test network: one net-sim container + 18 linbpq containers.
+#
+# Bring up:    docker compose up -d
+# Tear down:   docker compose down
+# Logs:        docker compose logs -f <service>     e.g. QD0HUB
+#
+# Web UIs on host ports 18001-18018 (HTTP) and 18101-18118 (telnet console).
+# net-sim topology UI on http://localhost:8080
+# Real-node attach point:  KISS over TCP to localhost:8100  (Aberdeen channel)
+
+x-linbpq: &linbpq
+  image: m0lte/linbpq:latest
+  restart: unless-stopped
+  depends_on:
+    netsim:
+      condition: service_healthy
+  networks: [rfnet]
+
+services:
+  # ------------------------------------------------------------------
+  # net-sim: simulates the RF channels and inter-port path loss.
+  # ------------------------------------------------------------------
+  netsim:
+    image: net-sim:viz            # locally-built — adds /map visualiser + SSE events
+    container_name: netsim
+    restart: unless-stopped
+    volumes:
+      - ./netsim/network.yaml:/etc/sim/network.yaml:ro
+    ports:
+      - "8080:8080"      # net-sim web UI
+      - "8100:8100"      # external attach KISS (Aberdeen channel)
+    # linbpq's IPADDR= does not resolve hostnames; pin a known IP here.
+    networks:
+      rfnet:
+        ipv4_address: 172.28.0.10
+    healthcheck:
+      # netsim image has neither wget nor curl; use bash's /dev/tcp.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  # ------------------------------------------------------------------
+  # Aberdeen (QA*) — town channel: netsim ports 8001-8004
+  # ------------------------------------------------------------------
+  QA0ABN:
+    <<: *linbpq
+    container_name: QA0ABN
+    volumes: [ "./nodes/QA0ABN:/data" ]
+    ports: [ "18001:8008", "18101:8010" ]
+
+  QA0ABS:
+    <<: *linbpq
+    container_name: QA0ABS
+    volumes: [ "./nodes/QA0ABS:/data" ]
+    # 18002: HTTP UI · 18102: BPQ telnet console · 18202: FBB (QtTermTCP)
+    ports: [ "18002:8008", "18102:8010", "18202:8011" ]
+
+  QA0BBS:
+    <<: *linbpq
+    container_name: QA0BBS
+    volumes: [ "./nodes/QA0BBS:/data" ]
+    ports: [ "18003:8008", "18103:8010" ]
+    command: ["mail"]
+
+  QA0HUB:
+    <<: *linbpq
+    container_name: QA0HUB
+    volumes: [ "./nodes/QA0HUB:/data" ]
+    ports: [ "18004:8008", "18104:8010" ]
+
+  # ------------------------------------------------------------------
+  # Bristol (QB*) — town channel: netsim ports 8005-8007
+  # ------------------------------------------------------------------
+  QB0BRI:
+    <<: *linbpq
+    container_name: QB0BRI
+    volumes: [ "./nodes/QB0BRI:/data" ]
+    ports: [ "18005:8008", "18105:8010" ]
+
+  QB0BBS:
+    <<: *linbpq
+    container_name: QB0BBS
+    volumes: [ "./nodes/QB0BBS:/data" ]
+    ports: [ "18006:8008", "18106:8010" ]
+    command: ["mail"]
+
+  QB0HUB:
+    <<: *linbpq
+    container_name: QB0HUB
+    volumes: [ "./nodes/QB0HUB:/data" ]
+    ports: [ "18007:8008", "18107:8010" ]
+
+  # ------------------------------------------------------------------
+  # Cambridge (QC*) — town channel: netsim ports 8008-8010
+  # ------------------------------------------------------------------
+  QC0CAM:
+    <<: *linbpq
+    container_name: QC0CAM
+    volumes: [ "./nodes/QC0CAM:/data" ]
+    ports: [ "18008:8008", "18108:8010" ]
+
+  QC0CAS:
+    <<: *linbpq
+    container_name: QC0CAS
+    volumes: [ "./nodes/QC0CAS:/data" ]
+    ports: [ "18009:8008", "18109:8010" ]
+
+  QC0HUB:
+    <<: *linbpq
+    container_name: QC0HUB
+    volumes: [ "./nodes/QC0HUB:/data" ]
+    ports: [ "18010:8008", "18110:8010" ]
+
+  # ------------------------------------------------------------------
+  # Durham (QD*) — town channel: netsim ports 8011-8014
+  # ------------------------------------------------------------------
+  QD0DUR:
+    <<: *linbpq
+    container_name: QD0DUR
+    volumes: [ "./nodes/QD0DUR:/data" ]
+    ports: [ "18011:8008", "18111:8010" ]
+
+  QD0DUS:
+    <<: *linbpq
+    container_name: QD0DUS
+    volumes: [ "./nodes/QD0DUS:/data" ]
+    ports: [ "18012:8008", "18112:8010" ]
+
+  QD0CHT:
+    <<: *linbpq
+    container_name: QD0CHT
+    volumes: [ "./nodes/QD0CHT:/data" ]
+    ports: [ "18013:8008", "18113:8010" ]
+    command: ["chat"]
+
+  QD0HUB:
+    <<: *linbpq
+    container_name: QD0HUB
+    volumes: [ "./nodes/QD0HUB:/data" ]
+    # 18014: HTTP UI · 18114: BPQ telnet console · 18214: FBB (QtTermTCP)
+    ports: [ "18014:8008", "18114:8010", "18214:8011" ]
+
+  # ------------------------------------------------------------------
+  # Exeter (QE*) — town channel: netsim ports 8015-8018
+  # ------------------------------------------------------------------
+  QE0EXE:
+    <<: *linbpq
+    container_name: QE0EXE
+    volumes: [ "./nodes/QE0EXE:/data" ]
+    ports: [ "18015:8008", "18115:8010" ]
+
+  QE0EXS:
+    <<: *linbpq
+    container_name: QE0EXS
+    volumes: [ "./nodes/QE0EXS:/data" ]
+    ports: [ "18016:8008", "18116:8010" ]
+
+  QE0BBS:
+    <<: *linbpq
+    container_name: QE0BBS
+    volumes: [ "./nodes/QE0BBS:/data" ]
+    ports: [ "18017:8008", "18117:8010" ]
+    command: ["mail"]
+
+  QE0HUB:
+    <<: *linbpq
+    container_name: QE0HUB
+    volumes: [ "./nodes/QE0HUB:/data" ]
+    ports: [ "18018:8008", "18118:8010" ]
+
+networks:
+  rfnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
