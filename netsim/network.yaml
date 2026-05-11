@@ -40,6 +40,9 @@ nodes:
     ports:
       - { id: vhf,    modem: { mode: afsk1200 }, kiss_port: 8004 }
       - { id: to_dur, modem: { mode: gfsk9600 }, kiss_port: 8021 }
+  - id: QA0XRT
+    ports:
+      - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8019 }
 
   # ---------- Bristol town (QB*) ----------
   - id: QB0BRI
@@ -64,6 +67,9 @@ nodes:
       - { id: vhf,    modem: { mode: afsk1200 }, kiss_port: 8010 }
       - { id: to_dur, modem: { mode: gfsk9600 }, kiss_port: 8024 }
       - { id: to_bri, modem: { mode: gfsk9600 }, kiss_port: 8025 }
+  - id: QC0XRT
+    ports:
+      - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8020 }
 
   # ---------- Durham town (QD*) ----------
   - id: QD0DUR
@@ -115,6 +121,15 @@ links:
   - { from: QA0ABN.vhf,  to: USEREXT.vhf,  loss_db: 22 }
   - { from: USEREXT.vhf, to: QA0ABS.vhf,   loss_db: 22 }
   - { from: QA0ABS.vhf,  to: USEREXT.vhf,  loss_db: 22 }
+  # XRouter station joins the Aberdeen channel — heard by all peers.
+  - { from: QA0XRT.vhf, to: QA0HUB.vhf,    loss_db: 17 }
+  - { from: QA0HUB.vhf, to: QA0XRT.vhf,    loss_db: 17 }
+  - { from: QA0XRT.vhf, to: QA0ABN.vhf,    loss_db: 22 }
+  - { from: QA0ABN.vhf, to: QA0XRT.vhf,    loss_db: 22 }
+  - { from: QA0XRT.vhf, to: QA0ABS.vhf,    loss_db: 22 }
+  - { from: QA0ABS.vhf, to: QA0XRT.vhf,    loss_db: 22 }
+  - { from: QA0XRT.vhf, to: USEREXT.vhf,   loss_db: 25 }
+  - { from: USEREXT.vhf, to: QA0XRT.vhf,   loss_db: 25 }
 
   # ====================================================================
   # Bristol town channel — simple 3-way mesh, all hear each other well.
@@ -132,6 +147,13 @@ links:
   - { from: QC0HUB.vhf, to: QC0CAS.vhf, loss_db: 20  }
   - { from: QC0CAM.vhf, to: QC0CAS.vhf, loss_db: 37 }
   - { from: QC0CAS.vhf, to: QC0CAM.vhf, loss_db: 37 }
+  # XRouter station joins the Cambridge channel.
+  - { from: QC0XRT.vhf, to: QC0HUB.vhf, loss_db: 17 }
+  - { from: QC0HUB.vhf, to: QC0XRT.vhf, loss_db: 17 }
+  - { from: QC0XRT.vhf, to: QC0CAM.vhf, loss_db: 22 }
+  - { from: QC0CAM.vhf, to: QC0XRT.vhf, loss_db: 22 }
+  - { from: QC0XRT.vhf, to: QC0CAS.vhf, loss_db: 22 }
+  - { from: QC0CAS.vhf, to: QC0XRT.vhf, loss_db: 22 }
 
   # ====================================================================
   # Durham town channel — QD0DUR <-> QD0DUS are hidden (30 dB). Chat node

@@ -197,13 +197,35 @@ class Session:
         self.drain(timeout=1.0)
         self.log("logged into BPQ console")
 
-        # C QD0HUB-2 at the BPQ prompt.
+        # C QD0HUB-2 at the BPQ prompt. If the same callsign already has
+        # a chat session live (e.g. we're reconnecting after a restart
+        # and the previous bot didn't /EX cleanly), BPQ Chat skips the
+        # "Please enter your Name" prompt and drops us straight into
+        # the session. So we wait for *either* prompt indicating we're
+        # in chat, then issue /N to set the nickname unconditionally.
         self.send("C QD0HUB-2")
-        self.wait_for(b"Please enter your Name", timeout=120)
-        self.send(self.p.nick)
-        # Chat: welcome + "Bringing up links..." spool.
-        time.sleep(5)
-        self.drain(timeout=2)
+        deadline = time.monotonic() + 120
+        in_chat = False
+        while time.monotonic() < deadline:
+            self.recv_buf += self.drain(timeout=0.5)
+            if b"Please enter your Name" in self.recv_buf:
+                self.send(self.p.nick)
+                time.sleep(3)
+                self.drain(timeout=2)
+                in_chat = True
+                break
+            # Reconnect-with-existing-session shows /p-style output
+            # listing connected stations, never reaching a name prompt.
+            if b"Station(s) connected" in self.recv_buf or b" at CHT " in self.recv_buf:
+                in_chat = True
+                break
+        if not in_chat:
+            raise TimeoutError("chat did not respond in 120 s")
+        # /N sets / updates the displayed nickname so other users see,
+        # e.g., "m0abc:" instead of "QA0ABN:".
+        self.send(f"/N {self.p.nick}")
+        time.sleep(1)
+        self.drain(timeout=1)
         self.log("in chat as " + self.p.nick)
 
     def say(self, text: str) -> None:
@@ -231,15 +253,22 @@ class Session:
 # ---------------------------------------------------------------------------
 
 def director(sessions: dict[str, Session]) -> None:
-    """Play threads at random with slow cadence and quiet gaps."""
+    """Play threads at random with brisk cadence and short quiet gaps."""
     rng = random.Random(os.environ.get("CHATBOT_SEED") or None)
+
+    # Pacing — overridable via env so the cadence can be tuned without
+    # editing the script. Defaults are deliberately chatty.
+    msg_min = float(os.environ.get("CHATBOT_MSG_MIN_S", "8"))
+    msg_max = float(os.environ.get("CHATBOT_MSG_MAX_S", "30"))
+    gap_min = float(os.environ.get("CHATBOT_GAP_MIN_S", "20"))
+    gap_max = float(os.environ.get("CHATBOT_GAP_MAX_S", "90"))
 
     while True:
         thread = rng.choice(THREADS)
         print(f"\n--- starting thread ({len(thread)} lines) ---", flush=True)
         for speaker, text in thread:
             # Per-message delay before the line lands.
-            time.sleep(rng.uniform(20, 90))
+            time.sleep(rng.uniform(msg_min, msg_max))
             sess = sessions.get(speaker)
             if sess is None:
                 continue
@@ -265,7 +294,7 @@ def director(sessions: dict[str, Session]) -> None:
                         other.keepalive()
                     except OSError:
                         pass
-        gap = rng.uniform(60, 300)
+        gap = rng.uniform(gap_min, gap_max)
         print(f"--- thread done; quiet for {gap:.0f}s ---", flush=True)
         # Keepalive throughout the quiet period.
         end = time.monotonic() + gap

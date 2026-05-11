@@ -163,6 +163,36 @@ services:
     command: ["mail"]
 
   # ------------------------------------------------------------------
+  # XRouter stations — alternative packet-radio router by G8PZT.
+  # Two of them, on the Aberdeen and Cambridge town channels, so each
+  # one rubs shoulders with a different set of BPQ stations and they
+  # cross-route through the synthetic backbone. Both expose their
+  # built-in Telnet server (port 23) on a host port — telnet in,
+  # `C QD0HUB-2` from the XRouter prompt, lands in the BPQ chat.
+  # ------------------------------------------------------------------
+  QA0XRT:
+    image: ghcr.io/packethacking/xrouter:latest
+    container_name: QA0XRT
+    restart: unless-stopped
+    depends_on:
+      netsim: { condition: service_healthy }
+    networks: [ rfnet ]
+    volumes: [ "./xrouter/QA0XRT:/data" ]
+    # 18019 telnet (XRouter port 23) · 18119 HTTP (80) · 18219 TELPROXY (2323)
+    ports: [ "18019:23", "18119:80", "18219:2323" ]
+
+  QC0XRT:
+    image: ghcr.io/packethacking/xrouter:latest
+    container_name: QC0XRT
+    restart: unless-stopped
+    depends_on:
+      netsim: { condition: service_healthy }
+    networks: [ rfnet ]
+    volumes: [ "./xrouter/QC0XRT:/data" ]
+    # 18020 telnet · 18120 HTTP · 18220 TELPROXY
+    ports: [ "18020:23", "18120:80", "18220:2323" ]
+
+  # ------------------------------------------------------------------
   # chatbot: four simulated users sustain a slow background chat on
   # CHT:QD0HUB-2. Pure RF presence — keeps the town channels and the
   # backbone showing some traffic on the live map. See chatbot/.

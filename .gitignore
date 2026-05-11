@@ -31,6 +31,13 @@ nodes/*/TopicList
 # Claude Code session scratch
 .claude/
 
+# XRouter runtime state — only the cfg files we author should be
+# tracked. Everything else (skel copies, logs, mailbox, FTP, SMS, etc.)
+# is generated on first boot or by user activity.
+xrouter/*/*
+!xrouter/*/XROUTER.CFG
+!xrouter/*/USERPASS.SYS
+
 # Editor cruft
 .vscode/
 .idea/

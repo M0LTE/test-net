@@ -1,0 +1,6 @@
+# USERPASS.SYS — synthetic test-net user passwords.
+# Format: <callsign>  <password>   (callsign without SSID)
+M0LTE   pass
+M0TEST  pass
+USER    pass
+G8PZT   pass

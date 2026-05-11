@@ -2,11 +2,14 @@
 
 A docker-compose stack that builds a small but varied "RF" network you can
 attach your real packet node to. Inside the stack there are 14 BPQ
-stations across 5 simulated towns, connected by 5 inter-town backbone
-links. Some of those stations also host applications — BBS Mail in
-Aberdeen, Bristol and Exeter; a chat server in Durham — addressed at
-additional SSIDs on the host station's callsign, the way real packet
-sites do it.
+stations and 2 XRouter stations across 5 simulated towns, connected
+by 5 inter-town backbone links. Some of those stations also host
+applications — BBS Mail in Aberdeen, Bristol and Exeter; a chat server
+in Durham — addressed at additional SSIDs on the host station's
+callsign, the way real packet sites do it. The XRouter nodes
+(`QA0XRT-1` on the Aberdeen channel, `QC0XRT-1` on the Cambridge
+channel) speak NETROM with their BPQ neighbours so the two
+implementations interoperate transparently.
 
 All callsigns/aliases start with `Q` so they cannot collide with real
 licensed amateur callsigns.
@@ -200,8 +203,17 @@ the table.
 | QE0EXE   | EXENOR | QE0EXE-7   | http://localhost:18015 | 18115   | 18215   |
 | QE0EXS   | EXESTH | QE0EXS-7   | http://localhost:18016 | 18116   | 18216   |
 | QE0HUB   | EXEHUB | QE0HUB-7   | http://localhost:18018 | 18118   | 18218   |
+| QA0XRT†  | ABEXRT | QA0XRT-1   | http://localhost:18119 | 18019   | 18219   |
+| QC0XRT†  | CAMXRT | QC0XRT-1   | http://localhost:18020 | 18120   | 18220   |
 
-**Credentials (same on every node):**
+† XRouter stations. The HTTP / Telnet / FBB columns map to XRouter's
+own protocols, not BPQ — Telnet here is XRouter's built-in telnet
+server (port 23 inside the container), HTTP is XRouter's web UI
+(port 80), and FBB is XRouter's `TELPROXY` BPQ-compatible binary
+gateway (port 2323) used by QtTermTCP. Credentials are different —
+see below.
+
+**Credentials (same on every BPQ node):**
 
 | Where                 | Username | Password   |
 |-----------------------|----------|------------|
@@ -213,6 +225,28 @@ the table.
 Both `admin` and `user` are flagged `SYSOP` so sysop commands work
 either way; the split exists so the docs can call them "HTTP" vs
 "console" credentials without further nuance.
+
+**Credentials on the XRouter stations:**
+
+| User    | Password |
+|---------|----------|
+| `M0LTE` | `pass`   |
+| `M0TEST`| `pass`   |
+| `USER`  | `pass`   |
+| `G8PZT` | `pass`   |
+
+XRouter asks for a callsign at the `Callsign:` prompt, then a password
+at `Password (or "guest"):`. Successful login lands at the XRouter
+prompt `<NODECALL>:<ALIAS>}`, from which `C QD0HUB-2` reaches the
+Durham chat across the BPQ backbone.
+
+Important: BPQ Chat allows **one session per source callsign**.
+Telnetting in from `QA0ABS` as `user/pass` connects you to chat as
+`QA0ABS`; if anyone else does the same from the same station they
+will displace your chat session. If you want a sustained chat
+presence while someone else is also using the network, log in
+through a node nobody else is using (there are 14 BPQ nodes plus
+2 XRouter nodes to choose from).
 
 To change them, edit each `nodes/<call>/bpq32.cfg`'s Telnet `PORT`
 block. Don't expose these ports to anything but localhost — these
