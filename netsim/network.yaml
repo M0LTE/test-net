@@ -36,9 +36,6 @@ nodes:
   - id: QA0ABS
     ports:
       - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8002 }
-  - id: QA0BBS
-    ports:
-      - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8003 }
   - id: QA0HUB
     ports:
       - { id: vhf,    modem: { mode: afsk1200 }, kiss_port: 8004 }
@@ -48,9 +45,6 @@ nodes:
   - id: QB0BRI
     ports:
       - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8005 }
-  - id: QB0BBS
-    ports:
-      - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8006 }
   - id: QB0HUB
     ports:
       - { id: vhf,    modem: { mode: afsk1200 }, kiss_port: 8007 }
@@ -78,9 +72,6 @@ nodes:
   - id: QD0DUS
     ports:
       - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8012 }
-  - id: QD0CHT
-    ports:
-      - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8013 }
   - id: QD0HUB
     ports:
       - { id: vhf,    modem: { mode: afsk1200 }, kiss_port: 8014 }
@@ -95,9 +86,6 @@ nodes:
   - id: QE0EXS
     ports:
       - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8016 }
-  - id: QE0BBS
-    ports:
-      - { id: vhf, modem: { mode: afsk1200 }, kiss_port: 8017 }
   - id: QE0HUB
     ports:
       - { id: vhf,    modem: { mode: afsk1200 }, kiss_port: 8018 }
@@ -111,100 +99,76 @@ nodes:
 
 links:
   # ====================================================================
-  # Aberdeen town channel — full 5-way mesh.
-  # QA0ABN <-> QA0ABS are a hidden-node pair (35 dB between them) but both
-  # are heard cleanly by QA0HUB and QA0BBS. USEREXT can also reach all.
+  # Aberdeen town channel — full 4-way mesh.
+  # QA0ABN <-> QA0ABS are a hidden-node pair (47 dB between them) but both
+  # are heard cleanly by QA0HUB. USEREXT can also reach all.
   # ====================================================================
-  - { from: QA0ABN.vhf, to: QA0HUB.vhf,    loss_db: 5  }
-  - { from: QA0HUB.vhf, to: QA0ABN.vhf,    loss_db: 5  }
-  - { from: QA0ABS.vhf, to: QA0HUB.vhf,    loss_db: 5  }
-  - { from: QA0HUB.vhf, to: QA0ABS.vhf,    loss_db: 5  }
-  - { from: QA0BBS.vhf, to: QA0HUB.vhf,    loss_db: 3  }
-  - { from: QA0HUB.vhf, to: QA0BBS.vhf,    loss_db: 3  }
-  - { from: QA0ABN.vhf, to: QA0BBS.vhf,    loss_db: 8  }
-  - { from: QA0BBS.vhf, to: QA0ABN.vhf,    loss_db: 8  }
-  - { from: QA0ABS.vhf, to: QA0BBS.vhf,    loss_db: 8  }
-  - { from: QA0BBS.vhf, to: QA0ABS.vhf,    loss_db: 8  }
-  - { from: QA0ABN.vhf, to: QA0ABS.vhf,    loss_db: 35 }  # hidden pair
-  - { from: QA0ABS.vhf, to: QA0ABN.vhf,    loss_db: 35 }  # hidden pair
-  - { from: USEREXT.vhf, to: QA0HUB.vhf,   loss_db: 5  }
-  - { from: QA0HUB.vhf,  to: USEREXT.vhf,  loss_db: 5  }
-  - { from: USEREXT.vhf, to: QA0BBS.vhf,   loss_db: 10 }
-  - { from: QA0BBS.vhf,  to: USEREXT.vhf,  loss_db: 10 }
-  - { from: USEREXT.vhf, to: QA0ABN.vhf,   loss_db: 10 }
-  - { from: QA0ABN.vhf,  to: USEREXT.vhf,  loss_db: 10 }
-  - { from: USEREXT.vhf, to: QA0ABS.vhf,   loss_db: 10 }
-  - { from: QA0ABS.vhf,  to: USEREXT.vhf,  loss_db: 10 }
+  - { from: QA0ABN.vhf, to: QA0HUB.vhf,    loss_db: 17  }
+  - { from: QA0HUB.vhf, to: QA0ABN.vhf,    loss_db: 17  }
+  - { from: QA0ABS.vhf, to: QA0HUB.vhf,    loss_db: 17  }
+  - { from: QA0HUB.vhf, to: QA0ABS.vhf,    loss_db: 17  }
+  - { from: QA0ABN.vhf, to: QA0ABS.vhf,    loss_db: 47 }  # hidden pair
+  - { from: QA0ABS.vhf, to: QA0ABN.vhf,    loss_db: 47 }  # hidden pair
+  - { from: USEREXT.vhf, to: QA0HUB.vhf,   loss_db: 17  }
+  - { from: QA0HUB.vhf,  to: USEREXT.vhf,  loss_db: 17  }
+  - { from: USEREXT.vhf, to: QA0ABN.vhf,   loss_db: 22 }
+  - { from: QA0ABN.vhf,  to: USEREXT.vhf,  loss_db: 22 }
+  - { from: USEREXT.vhf, to: QA0ABS.vhf,   loss_db: 22 }
+  - { from: QA0ABS.vhf,  to: USEREXT.vhf,  loss_db: 22 }
 
   # ====================================================================
   # Bristol town channel — simple 3-way mesh, all hear each other well.
   # ====================================================================
-  - { from: QB0BRI.vhf, to: QB0HUB.vhf, loss_db: 5 }
-  - { from: QB0HUB.vhf, to: QB0BRI.vhf, loss_db: 5 }
-  - { from: QB0BBS.vhf, to: QB0HUB.vhf, loss_db: 5 }
-  - { from: QB0HUB.vhf, to: QB0BBS.vhf, loss_db: 5 }
-  - { from: QB0BRI.vhf, to: QB0BBS.vhf, loss_db: 8 }
-  - { from: QB0BBS.vhf, to: QB0BRI.vhf, loss_db: 8 }
+  - { from: QB0BRI.vhf, to: QB0HUB.vhf, loss_db: 17 }
+  - { from: QB0HUB.vhf, to: QB0BRI.vhf, loss_db: 17 }
 
   # ====================================================================
   # Cambridge town channel — QC0CAM and QC0CAS partially overlap (25 dB),
   # both fully heard by the hub.
   # ====================================================================
-  - { from: QC0CAM.vhf, to: QC0HUB.vhf, loss_db: 5  }
-  - { from: QC0HUB.vhf, to: QC0CAM.vhf, loss_db: 5  }
-  - { from: QC0CAS.vhf, to: QC0HUB.vhf, loss_db: 8  }
-  - { from: QC0HUB.vhf, to: QC0CAS.vhf, loss_db: 8  }
-  - { from: QC0CAM.vhf, to: QC0CAS.vhf, loss_db: 25 }
-  - { from: QC0CAS.vhf, to: QC0CAM.vhf, loss_db: 25 }
+  - { from: QC0CAM.vhf, to: QC0HUB.vhf, loss_db: 17  }
+  - { from: QC0HUB.vhf, to: QC0CAM.vhf, loss_db: 17  }
+  - { from: QC0CAS.vhf, to: QC0HUB.vhf, loss_db: 20  }
+  - { from: QC0HUB.vhf, to: QC0CAS.vhf, loss_db: 20  }
+  - { from: QC0CAM.vhf, to: QC0CAS.vhf, loss_db: 37 }
+  - { from: QC0CAS.vhf, to: QC0CAM.vhf, loss_db: 37 }
 
   # ====================================================================
   # Durham town channel — QD0DUR <-> QD0DUS are hidden (30 dB). Chat node
   # is reachable to everyone in town.
   # ====================================================================
-  - { from: QD0DUR.vhf, to: QD0HUB.vhf, loss_db: 5  }
-  - { from: QD0HUB.vhf, to: QD0DUR.vhf, loss_db: 5  }
-  - { from: QD0DUS.vhf, to: QD0HUB.vhf, loss_db: 8  }
-  - { from: QD0HUB.vhf, to: QD0DUS.vhf, loss_db: 8  }
-  - { from: QD0CHT.vhf, to: QD0HUB.vhf, loss_db: 3  }
-  - { from: QD0HUB.vhf, to: QD0CHT.vhf, loss_db: 3  }
-  - { from: QD0DUR.vhf, to: QD0CHT.vhf, loss_db: 8  }
-  - { from: QD0CHT.vhf, to: QD0DUR.vhf, loss_db: 8  }
-  - { from: QD0DUS.vhf, to: QD0CHT.vhf, loss_db: 12 }
-  - { from: QD0CHT.vhf, to: QD0DUS.vhf, loss_db: 12 }
-  - { from: QD0DUR.vhf, to: QD0DUS.vhf, loss_db: 30 }  # hidden pair
-  - { from: QD0DUS.vhf, to: QD0DUR.vhf, loss_db: 30 }
+  - { from: QD0DUR.vhf, to: QD0HUB.vhf, loss_db: 17  }
+  - { from: QD0HUB.vhf, to: QD0DUR.vhf, loss_db: 17  }
+  - { from: QD0DUS.vhf, to: QD0HUB.vhf, loss_db: 20  }
+  - { from: QD0HUB.vhf, to: QD0DUS.vhf, loss_db: 20  }
+  - { from: QD0DUR.vhf, to: QD0DUS.vhf, loss_db: 42 }  # hidden pair
+  - { from: QD0DUS.vhf, to: QD0DUR.vhf, loss_db: 42 }
 
   # ====================================================================
   # Exeter town channel — full mesh, with a moderate-loss pair (EXE/EXS).
   # ====================================================================
-  - { from: QE0EXE.vhf, to: QE0HUB.vhf, loss_db: 5  }
-  - { from: QE0HUB.vhf, to: QE0EXE.vhf, loss_db: 5  }
-  - { from: QE0EXS.vhf, to: QE0HUB.vhf, loss_db: 5  }
-  - { from: QE0HUB.vhf, to: QE0EXS.vhf, loss_db: 5  }
-  - { from: QE0BBS.vhf, to: QE0HUB.vhf, loss_db: 3  }
-  - { from: QE0HUB.vhf, to: QE0BBS.vhf, loss_db: 3  }
-  - { from: QE0EXE.vhf, to: QE0EXS.vhf, loss_db: 20 }
-  - { from: QE0EXS.vhf, to: QE0EXE.vhf, loss_db: 20 }
-  - { from: QE0EXE.vhf, to: QE0BBS.vhf, loss_db: 8  }
-  - { from: QE0BBS.vhf, to: QE0EXE.vhf, loss_db: 8  }
-  - { from: QE0EXS.vhf, to: QE0BBS.vhf, loss_db: 10 }
-  - { from: QE0BBS.vhf, to: QE0EXS.vhf, loss_db: 10 }
+  - { from: QE0EXE.vhf, to: QE0HUB.vhf, loss_db: 17  }
+  - { from: QE0HUB.vhf, to: QE0EXE.vhf, loss_db: 17  }
+  - { from: QE0EXS.vhf, to: QE0HUB.vhf, loss_db: 17  }
+  - { from: QE0HUB.vhf, to: QE0EXS.vhf, loss_db: 17  }
+  - { from: QE0EXE.vhf, to: QE0EXS.vhf, loss_db: 32 }
+  - { from: QE0EXS.vhf, to: QE0EXE.vhf, loss_db: 32 }
 
   # ====================================================================
   # Backbone point-to-point links — just the two HUB ends.
   # ====================================================================
   # ABE <-> DUR
-  - { from: QA0HUB.to_dur, to: QD0HUB.to_abe, loss_db: 2 }
-  - { from: QD0HUB.to_abe, to: QA0HUB.to_dur, loss_db: 2 }
+  - { from: QA0HUB.to_dur, to: QD0HUB.to_abe, loss_db: 14 }
+  - { from: QD0HUB.to_abe, to: QA0HUB.to_dur, loss_db: 14 }
   # DUR <-> CAM
-  - { from: QD0HUB.to_cam, to: QC0HUB.to_dur, loss_db: 2 }
-  - { from: QC0HUB.to_dur, to: QD0HUB.to_cam, loss_db: 2 }
+  - { from: QD0HUB.to_cam, to: QC0HUB.to_dur, loss_db: 14 }
+  - { from: QC0HUB.to_dur, to: QD0HUB.to_cam, loss_db: 14 }
   # CAM <-> BRI
-  - { from: QC0HUB.to_bri, to: QB0HUB.to_cam, loss_db: 2 }
-  - { from: QB0HUB.to_cam, to: QC0HUB.to_bri, loss_db: 2 }
+  - { from: QC0HUB.to_bri, to: QB0HUB.to_cam, loss_db: 14 }
+  - { from: QB0HUB.to_cam, to: QC0HUB.to_bri, loss_db: 14 }
   # BRI <-> EXE
-  - { from: QB0HUB.to_exe, to: QE0HUB.to_bri, loss_db: 2 }
-  - { from: QE0HUB.to_bri, to: QB0HUB.to_exe, loss_db: 2 }
+  - { from: QB0HUB.to_exe, to: QE0HUB.to_bri, loss_db: 14 }
+  - { from: QE0HUB.to_bri, to: QB0HUB.to_exe, loss_db: 14 }
   # DUR <-> BRI (il2p diagonal — slightly higher loss)
-  - { from: QD0HUB.to_bri, to: QB0HUB.to_dur, loss_db: 4 }
-  - { from: QB0HUB.to_dur, to: QD0HUB.to_bri, loss_db: 4 }
+  - { from: QD0HUB.to_bri, to: QB0HUB.to_dur, loss_db: 16 }
+  - { from: QB0HUB.to_dur, to: QD0HUB.to_bri, loss_db: 16 }

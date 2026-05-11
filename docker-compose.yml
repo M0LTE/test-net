@@ -1,4 +1,4 @@
-# Synthetic "RF" test network: one net-sim container + 18 linbpq containers.
+# Synthetic "RF" test network: one net-sim container + 14 linbpq containers.
 #
 # Bring up:    docker compose up -d
 # Tear down:   docker compose down
@@ -69,18 +69,13 @@ services:
     # 18002: HTTP UI · 18102: BPQ telnet console · 18202: FBB (QtTermTCP)
     ports: [ "18002:8008", "18102:8010", "18202:8011" ]
 
-  QA0BBS:
-    <<: *linbpq
-    container_name: QA0BBS
-    volumes: [ "./nodes/QA0BBS:/data" ]
-    ports: [ "18003:8008", "18103:8010", "18203:8011" ]
-    command: ["mail"]
 
   QA0HUB:
     <<: *linbpq
     container_name: QA0HUB
     volumes: [ "./nodes/QA0HUB:/data" ]
     ports: [ "18004:8008", "18104:8010", "18204:8011" ]
+    command: ["mail"]
 
   # ------------------------------------------------------------------
   # Bristol (QB*) — town channel: netsim ports 8005-8007
@@ -91,18 +86,13 @@ services:
     volumes: [ "./nodes/QB0BRI:/data" ]
     ports: [ "18005:8008", "18105:8010", "18205:8011" ]
 
-  QB0BBS:
-    <<: *linbpq
-    container_name: QB0BBS
-    volumes: [ "./nodes/QB0BBS:/data" ]
-    ports: [ "18006:8008", "18106:8010", "18206:8011" ]
-    command: ["mail"]
 
   QB0HUB:
     <<: *linbpq
     container_name: QB0HUB
     volumes: [ "./nodes/QB0HUB:/data" ]
     ports: [ "18007:8008", "18107:8010", "18207:8011" ]
+    command: ["mail"]
 
   # ------------------------------------------------------------------
   # Cambridge (QC*) — town channel: netsim ports 8008-8010
@@ -140,12 +130,6 @@ services:
     volumes: [ "./nodes/QD0DUS:/data" ]
     ports: [ "18012:8008", "18112:8010", "18212:8011" ]
 
-  QD0CHT:
-    <<: *linbpq
-    container_name: QD0CHT
-    volumes: [ "./nodes/QD0CHT:/data" ]
-    ports: [ "18013:8008", "18113:8010", "18213:8011" ]
-    command: ["chat"]
 
   QD0HUB:
     <<: *linbpq
@@ -153,6 +137,7 @@ services:
     volumes: [ "./nodes/QD0HUB:/data" ]
     # 18014: HTTP UI · 18114: BPQ telnet console · 18214: FBB (QtTermTCP)
     ports: [ "18014:8008", "18114:8010", "18214:8011" ]
+    command: ["chat"]
 
   # ------------------------------------------------------------------
   # Exeter (QE*) — town channel: netsim ports 8015-8018
@@ -169,18 +154,13 @@ services:
     volumes: [ "./nodes/QE0EXS:/data" ]
     ports: [ "18016:8008", "18116:8010", "18216:8011" ]
 
-  QE0BBS:
-    <<: *linbpq
-    container_name: QE0BBS
-    volumes: [ "./nodes/QE0BBS:/data" ]
-    ports: [ "18017:8008", "18117:8010", "18217:8011" ]
-    command: ["mail"]
 
   QE0HUB:
     <<: *linbpq
     container_name: QE0HUB
     volumes: [ "./nodes/QE0HUB:/data" ]
     ports: [ "18018:8008", "18118:8010", "18218:8011" ]
+    command: ["mail"]
 
 networks:
   rfnet:

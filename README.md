@@ -1,11 +1,31 @@
 # Synthetic packet-radio test network
 
 A docker-compose stack that builds a small but varied "RF" network you can
-attach your real packet node to. Inside the stack there are 18 BPQ nodes
-across 5 simulated towns, connected by 5 inter-town backbone links.
+attach your real packet node to. Inside the stack there are 14 BPQ
+stations across 5 simulated towns, connected by 5 inter-town backbone
+links. Some of those stations also host applications — BBS Mail in
+Aberdeen, Bristol and Exeter; a chat server in Durham — addressed at
+additional SSIDs on the host station's callsign, the way real packet
+sites do it.
 
 All callsigns/aliases start with `Q` so they cannot collide with real
 licensed amateur callsigns.
+
+## Nodes vs applications
+
+A BPQ **station** is one machine with one or more radios. It has a
+**node callsign** for the routing layer (e.g. `QA0HUB-7`), and may
+host one or more **applications** — BBS, chat, RMS gateway etc. —
+addressed at *additional SSIDs on the same base callsign*: the
+Aberdeen BBS is `QA0HUB-1`, the Durham chat is `QD0HUB-2`. These
+share the station's one radio and appear in the NETROM nodes table
+as additional aliases pointing to the same L2 destination.
+
+So there are 14 *stations* in this test net, of which 4 also host an
+application (3 BBSes + 1 chat). The Cambridge town has no application
+host. To connect to the Aberdeen BBS, you `C BBS` (the alias) or
+`C QA0HUB-1` (the SSID directly) — both reach the BBS process living
+on the same machine as the Aberdeen hub.
 
 ```
                                  [ il2p 9k6 ]
@@ -25,31 +45,29 @@ licensed amateur callsigns.
   as a KISS-over-TCP port. The container's `network.yaml` describes channel
   membership and per-pair path loss (so hidden-node and FM-capture effects
   are modelled).
-* **18 linbpq containers** — one per `Q*` node. Each runs `m0lte/linbpq` and
-  attaches its `bpq32.cfg` PORT(s) to the appropriate netsim KISS port(s).
+* **14 linbpq containers** — one per `Q*` station. Each runs `m0lte/linbpq`
+  and attaches its `bpq32.cfg` PORT(s) to the appropriate netsim KISS
+  port(s). Four of them also host BPQ Mail or BPQ Chat (started with
+  the corresponding extra `command:` in compose).
 
-### Nodes (callsign-7, alias, role, town)
+### Stations
 
-| Call       | Alias  | Town       | Role              | Ports |
-|------------|--------|------------|-------------------|-------|
-| QA0ABN-7   | ABENOR | Aberdeen   | User node         | 1     |
-| QA0ABS-7   | ABESTH | Aberdeen   | User node         | 1     |
-| QA0BBS-7   | ABEBBS | Aberdeen   | **BBS**           | 1     |
-| QA0HUB-7   | ABEHUB | Aberdeen   | Hub (town + 9k6)  | 2     |
-| QB0BRI-7   | BRIMAI | Bristol    | User node         | 1     |
-| QB0BBS-7   | BRIBBS | Bristol    | **BBS**           | 1     |
-| QB0HUB-7   | BRIHUB | Bristol    | Hub               | 4     |
-| QC0CAM-7   | CAMNOR | Cambridge  | User node         | 1     |
-| QC0CAS-7   | CAMSTH | Cambridge  | User node         | 1     |
-| QC0HUB-7   | CAMHUB | Cambridge  | Hub               | 3     |
-| QD0DUR-7   | DURNOR | Durham     | User node         | 1     |
-| QD0DUS-7   | DURSTH | Durham     | User node         | 1     |
-| QD0CHT-7   | DURCHT | Durham     | **Chat server**   | 1     |
-| QD0HUB-7   | DURHUB | Durham     | Hub               | 4     |
-| QE0EXE-7   | EXENOR | Exeter     | User node         | 1     |
-| QE0EXS-7   | EXESTH | Exeter     | User node         | 1     |
-| QE0BBS-7   | EXEBBS | Exeter     | **BBS**           | 1     |
-| QE0HUB-7   | EXEHUB | Exeter     | Hub               | 2     |
+| Station     | Alias  | Town       | Role                      | Radios | Hosted apps               |
+|-------------|--------|------------|---------------------------|--------|---------------------------|
+| QA0ABN-7    | ABENOR | Aberdeen   | User                      | 1      | —                         |
+| QA0ABS-7    | ABESTH | Aberdeen   | User                      | 1      | —                         |
+| QA0HUB-7    | ABEHUB | Aberdeen   | Hub (town + 9k6 backbone) | 2      | BBS at `QA0HUB-1` (`BBS`) |
+| QB0BRI-7    | BRIMAI | Bristol    | User                      | 1      | —                         |
+| QB0HUB-7    | BRIHUB | Bristol    | Hub                       | 4      | BBS at `QB0HUB-1` (`BBS`) |
+| QC0CAM-7    | CAMNOR | Cambridge  | User                      | 1      | —                         |
+| QC0CAS-7    | CAMSTH | Cambridge  | User                      | 1      | —                         |
+| QC0HUB-7    | CAMHUB | Cambridge  | Hub                       | 3      | —                         |
+| QD0DUR-7    | DURNOR | Durham     | User                      | 1      | —                         |
+| QD0DUS-7    | DURSTH | Durham     | User                      | 1      | —                         |
+| QD0HUB-7    | DURHUB | Durham     | Hub                       | 4      | Chat at `QD0HUB-2` (`CHT`)|
+| QE0EXE-7    | EXENOR | Exeter     | User                      | 1      | —                         |
+| QE0EXS-7    | EXESTH | Exeter     | User                      | 1      | —                         |
+| QE0HUB-7    | EXEHUB | Exeter     | Hub                       | 2      | BBS at `QE0HUB-1` (`BBS`) |
 
 ### Channels / RF topology
 
@@ -70,8 +88,8 @@ licensed amateur callsigns.
 To exercise the contention behaviour you said you wanted:
 
 * **Aberdeen**: QA0ABN ↔ QA0ABS (35 dB between them, but both heard cleanly
-  by QA0HUB and QA0BBS).
-* **Durham**: QD0DUR ↔ QD0DUS (30 dB), both fully heard by QD0HUB and QD0CHT.
+  by QA0HUB).
+* **Durham**: QD0DUR ↔ QD0DUS (42 dB), both fully heard by QD0HUB.
 * **Cambridge & Exeter** have one moderate-loss pair each (25 / 20 dB) — they
   can still hear each other but not as cleanly as everything else.
 
@@ -88,10 +106,10 @@ docker compose up -d
 ```
 
 First pull of `ghcr.io/packethacking/net-sim:main` and
-`m0lte/linbpq:latest` will take a minute. The 18 linbpq containers
+`m0lte/linbpq:latest` will take a minute. The 14 linbpq containers
 wait for net-sim's healthcheck to pass before starting. NETROM
-neighbours appear within ~30 s; the full 18-node mesh takes roughly
-7 minutes to converge from cold.
+neighbours appear within ~30 s; the full mesh takes roughly 5 minutes
+to converge from cold.
 
 To tear the network down again:
 
@@ -150,9 +168,13 @@ PORT
 ENDPORT
 ```
 
-Once linked, you should see all 18 `Q*` nodes appear in your `N` (nodes)
-table and be able to `C QA0HUB-7`, `C QD0CHT-7`, `C QE0BBS-7` etc. — and
-each step beyond Aberdeen should route across the synthetic RF backbone.
+Once linked, all 14 station node calls plus their hosted-application
+aliases (`BBS:QA0HUB-1`, `BBS:QB0HUB-1`, `BBS:QE0HUB-1`, `CHT:QD0HUB-2`)
+should appear in your `N` (nodes) table. From any station you can
+`C QA0HUB-7` to drop into the Aberdeen hub's node prompt, `C BBS`
+(via NETROM) or `C QA0HUB-1` to land in the Aberdeen BBS, `C CHT`
+or `C QD0HUB-2` to land in the Durham chat — each cross-town hop
+travels the synthetic backbone.
 
 ## Reaching the synthetic nodes
 
@@ -162,25 +184,21 @@ Every linbpq container publishes three TCP ports on the host:
 top-level sysop password are identical on every node — see below
 the table.
 
-| Node     | Alias  | Call       | HTTP                   | Telnet  | FBB     |
+| Station  | Alias  | Call       | HTTP                   | Telnet  | FBB     |
 |----------|--------|------------|------------------------|---------|---------|
 | QA0ABN   | ABENOR | QA0ABN-7   | http://localhost:18001 | 18101   | 18201   |
 | QA0ABS   | ABESTH | QA0ABS-7   | http://localhost:18002 | 18102   | 18202   |
-| QA0BBS   | ABEBBS | QA0BBS-7   | http://localhost:18003 | 18103   | 18203   |
 | QA0HUB   | ABEHUB | QA0HUB-7   | http://localhost:18004 | 18104   | 18204   |
 | QB0BRI   | BRIMAI | QB0BRI-7   | http://localhost:18005 | 18105   | 18205   |
-| QB0BBS   | BRIBBS | QB0BBS-7   | http://localhost:18006 | 18106   | 18206   |
 | QB0HUB   | BRIHUB | QB0HUB-7   | http://localhost:18007 | 18107   | 18207   |
 | QC0CAM   | CAMNOR | QC0CAM-7   | http://localhost:18008 | 18108   | 18208   |
 | QC0CAS   | CAMSTH | QC0CAS-7   | http://localhost:18009 | 18109   | 18209   |
 | QC0HUB   | CAMHUB | QC0HUB-7   | http://localhost:18010 | 18110   | 18210   |
 | QD0DUR   | DURNOR | QD0DUR-7   | http://localhost:18011 | 18111   | 18211   |
 | QD0DUS   | DURSTH | QD0DUS-7   | http://localhost:18012 | 18112   | 18212   |
-| QD0CHT   | DURCHT | QD0CHT-7   | http://localhost:18013 | 18113   | 18213   |
 | QD0HUB   | DURHUB | QD0HUB-7   | http://localhost:18014 | 18114   | 18214   |
 | QE0EXE   | EXENOR | QE0EXE-7   | http://localhost:18015 | 18115   | 18215   |
 | QE0EXS   | EXESTH | QE0EXS-7   | http://localhost:18016 | 18116   | 18216   |
-| QE0BBS   | EXEBBS | QE0BBS-7   | http://localhost:18017 | 18117   | 18217   |
 | QE0HUB   | EXEHUB | QE0HUB-7   | http://localhost:18018 | 18118   | 18218   |
 
 **Credentials (same on every node):**
