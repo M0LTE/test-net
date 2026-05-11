@@ -77,15 +77,50 @@ To exercise the contention behaviour you said you wanted:
 
 ## Bringing it up
 
+Prerequisites: a working Docker installation that includes Docker
+Compose v2 (`docker compose ...`). Tested on Docker Desktop / WSL2,
+should work on any Linux host with Docker ≥ 24.
+
 ```
+git clone https://github.com/M0LTE/test-net.git
+cd test-net
 docker compose up -d
 ```
 
-First pull of `ghcr.io/packethacking/net-sim:main` and `m0lte/linbpq:latest`
-will take a minute. Then the 18 linbpq containers wait for net-sim's
-healthcheck to pass before starting. You should expect to see each node
-discovering its neighbours via NETROM broadcasts within ~30 s, and the full
-inter-town nodes table to settle within a few minutes.
+First pull of `ghcr.io/packethacking/net-sim:main` and
+`m0lte/linbpq:latest` will take a minute. The 18 linbpq containers
+wait for net-sim's healthcheck to pass before starting. NETROM
+neighbours appear within ~30 s; the full 18-node mesh takes roughly
+7 minutes to converge from cold.
+
+To tear the network down again:
+
+```
+docker compose down
+```
+
+`docker compose down` removes the containers and the Docker network
+but leaves your `nodes/<call>/` directories on disk, including each
+node's `BPQNODES.dat` and chat/BBS state. The next `up` resumes from
+that state so reconvergence is fast. To start completely fresh, also
+delete `nodes/*/BPQNODES.dat` `nodes/*/HTML` `nodes/*/logs` (or just
+let `.gitignore` show you what's runtime state).
+
+### Optional: docker socket for sim-only CPU%
+
+The live map (`/map`, see below) shows aggregate CPU% across this
+sim's containers when net-sim can talk to the Docker daemon. The
+compose mounts `/var/run/docker.sock` read-only and adds the netsim
+container to the host's `docker` group. On most distros that group
+is GID 999 or 1001; the compose defaults to 1001. If your host
+uses a different GID, run with an override:
+
+```
+DOCKER_SOCK_GID=$(stat -c %g /var/run/docker.sock) docker compose up -d
+```
+
+If the socket isn't readable for any reason, `/api/stats` falls
+back to host-wide CPU and the HUD label changes to `HOST CPU`.
 
 ## Attaching your real packet node
 
@@ -151,10 +186,11 @@ net-sim's own topology dashboard is at <http://localhost:8080>.
 
 Live map (DEFCON-flavour situation display) at
 <http://localhost:8080/map> — shows the topology clustered by detected
-town, lights links up as they carry traffic, displays a HUD with
-event-per-second, TX-active count, collision/capture counters, and a
-host-CPU sparkline. Requires the `live-map-visualiser` branch of
-net-sim (or its successor on `main`).
+town, lights links up as they carry traffic, animates per-frame pulses
+along each link, and displays a HUD with events-per-second, TX-active
+count, collision/capture counters, and a sim-CPU sparkline. The
+external attach point (USEREXT) is rendered as a distinct amber
+diamond rather than a regular station so it reads as "outside world."
 
 ## QtTermTCP / BPQ FBB login
 
