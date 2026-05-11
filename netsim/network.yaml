@@ -27,6 +27,7 @@
 mixer_mode: fm_capture
 capture_db: 6.0
 collision_mode: silence
+default_noise_db: 22   # FM band-noise floor heard by every receiver
 
 nodes:
   # ---------- Aberdeen town (QA*) ----------
@@ -113,8 +114,8 @@ links:
   - { from: QA0HUB.vhf, to: QA0ABN.vhf,    loss_db: 17  }
   - { from: QA0ABS.vhf, to: QA0HUB.vhf,    loss_db: 17  }
   - { from: QA0HUB.vhf, to: QA0ABS.vhf,    loss_db: 17  }
-  - { from: QA0ABN.vhf, to: QA0ABS.vhf,    loss_db: 47, noise_db: 18 }  # hidden pair
-  - { from: QA0ABS.vhf, to: QA0ABN.vhf,    loss_db: 47, noise_db: 18 }  # hidden pair
+  - { from: QA0ABN.vhf, to: QA0ABS.vhf,    loss_db: 47 }  # hidden pair
+  - { from: QA0ABS.vhf, to: QA0ABN.vhf,    loss_db: 47 }  # hidden pair
   - { from: USEREXT.vhf, to: QA0HUB.vhf,   loss_db: 17  }
   - { from: QA0HUB.vhf,  to: USEREXT.vhf,  loss_db: 17  }
   - { from: USEREXT.vhf, to: QA0ABN.vhf,   loss_db: 22 }
@@ -128,8 +129,8 @@ links:
   - { from: QA0ABN.vhf, to: QA0XRT.vhf,    loss_db: 22 }
   - { from: QA0XRT.vhf, to: QA0ABS.vhf,    loss_db: 22 }
   - { from: QA0ABS.vhf, to: QA0XRT.vhf,    loss_db: 22 }
-  - { from: QA0XRT.vhf, to: USEREXT.vhf,   loss_db: 25, noise_db: 18 }
-  - { from: USEREXT.vhf, to: QA0XRT.vhf,   loss_db: 25, noise_db: 18 }
+  - { from: QA0XRT.vhf, to: USEREXT.vhf,   loss_db: 25 }
+  - { from: USEREXT.vhf, to: QA0XRT.vhf,   loss_db: 25 }
 
   # ====================================================================
   # Bristol town channel — simple 3-way mesh, all hear each other well.
@@ -145,8 +146,8 @@ links:
   - { from: QC0HUB.vhf, to: QC0CAM.vhf, loss_db: 17  }
   - { from: QC0CAS.vhf, to: QC0HUB.vhf, loss_db: 20  }
   - { from: QC0HUB.vhf, to: QC0CAS.vhf, loss_db: 20  }
-  - { from: QC0CAM.vhf, to: QC0CAS.vhf, loss_db: 37, noise_db: 18 }
-  - { from: QC0CAS.vhf, to: QC0CAM.vhf, loss_db: 37, noise_db: 18 }
+  - { from: QC0CAM.vhf, to: QC0CAS.vhf, loss_db: 37 }
+  - { from: QC0CAS.vhf, to: QC0CAM.vhf, loss_db: 37 }
   # XRouter station joins the Cambridge channel.
   - { from: QC0XRT.vhf, to: QC0HUB.vhf, loss_db: 17 }
   - { from: QC0HUB.vhf, to: QC0XRT.vhf, loss_db: 17 }
@@ -163,8 +164,8 @@ links:
   - { from: QD0HUB.vhf, to: QD0DUR.vhf, loss_db: 17  }
   - { from: QD0DUS.vhf, to: QD0HUB.vhf, loss_db: 20  }
   - { from: QD0HUB.vhf, to: QD0DUS.vhf, loss_db: 20  }
-  - { from: QD0DUR.vhf, to: QD0DUS.vhf, loss_db: 42, noise_db: 18 }  # hidden pair
-  - { from: QD0DUS.vhf, to: QD0DUR.vhf, loss_db: 42, noise_db: 18 }
+  - { from: QD0DUR.vhf, to: QD0DUS.vhf, loss_db: 42 }  # hidden pair
+  - { from: QD0DUS.vhf, to: QD0DUR.vhf, loss_db: 42 }
 
   # ====================================================================
   # Exeter town channel — full mesh, with a moderate-loss pair (EXE/EXS).
@@ -173,8 +174,8 @@ links:
   - { from: QE0HUB.vhf, to: QE0EXE.vhf, loss_db: 17  }
   - { from: QE0EXS.vhf, to: QE0HUB.vhf, loss_db: 17  }
   - { from: QE0HUB.vhf, to: QE0EXS.vhf, loss_db: 17  }
-  - { from: QE0EXE.vhf, to: QE0EXS.vhf, loss_db: 32, noise_db: 18 }
-  - { from: QE0EXS.vhf, to: QE0EXE.vhf, loss_db: 32, noise_db: 18 }
+  - { from: QE0EXE.vhf, to: QE0EXS.vhf, loss_db: 32 }
+  - { from: QE0EXS.vhf, to: QE0EXE.vhf, loss_db: 32 }
 
   # ====================================================================
   # Backbone point-to-point links — just the two HUB ends.
