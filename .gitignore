@@ -18,9 +18,15 @@ nodes/*/linmail.cfg
 nodes/*/linmail.cfg.*
 nodes/*/log*BBS*.txt
 nodes/*/log*Chat*.txt
+nodes/*/log*CHAT*.txt
 nodes/*/Chat/
 nodes/*/chatconfig.cfg
 nodes/*/chatconfig.cfg.*
+# BPQ Chat runtime state (created when linbpq is launched with `chat`).
+nodes/*/RTKnown.txt
+nodes/*/STUsers.txt
+nodes/*/Mod-*.txt
+nodes/*/TopicList
 
 # Claude Code session scratch
 .claude/

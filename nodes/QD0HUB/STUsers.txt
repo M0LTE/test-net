@@ -1,6 +1,0 @@
-QA0ABS 2 Tom ?_qth¬23¬
-QA0ABN 0 m0abc ?_qth¬99¬
-QE0EXS 0 g4xyz ?_qth¬97¬
-QC0CAS 0 2e1pq ?_qth¬74¬
-QD0DUR 0 m7hij ?_qth¬76¬
-QC0HUB 2 lurker ?_qth¬99¬
