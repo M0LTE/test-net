@@ -237,6 +237,23 @@ class Session:
     def keepalive(self) -> None:
         self.drain(timeout=0.2)
 
+    # Markers that mean we're not in chat any more — either an explicit
+    # disconnect or output that's coming from BPQ's node prompt rather
+    # than the chat server.
+    _BACK_AT_NODE_MARKERS = (
+        b"Invalid command",
+        b"Disconnected from Node",
+        b"Disconnected from Stream",
+        b"Connect refused",
+    )
+
+    def looks_dropped(self, buf: bytes) -> bool:
+        """True if recent output indicates we're no longer in chat."""
+        for m in self._BACK_AT_NODE_MARKERS:
+            if m in buf:
+                return True
+        return False
+
     def close(self) -> None:
         try:
             self.send("/EX")
@@ -263,6 +280,20 @@ def director(sessions: dict[str, Session]) -> None:
     gap_min = float(os.environ.get("CHATBOT_GAP_MIN_S", "20"))
     gap_max = float(os.environ.get("CHATBOT_GAP_MAX_S", "90"))
 
+    def reconnect(speaker: str, sess: Session) -> bool:
+        """Tear down a session and bring it back up. Returns True on success."""
+        try:
+            sess.close()
+        except Exception:
+            pass
+        try:
+            sess.connect()
+            sess.login_and_enter_chat()
+            return True
+        except Exception as e:
+            print(f"[{speaker}] reconnect failed: {e}", flush=True)
+            return False
+
     while True:
         thread = rng.choice(THREADS)
         print(f"\n--- starting thread ({len(thread)} lines) ---", flush=True)
@@ -273,27 +304,45 @@ def director(sessions: dict[str, Session]) -> None:
             if sess is None:
                 continue
             print(f"[{speaker}] {text}", flush=True)
-            try:
-                sess.say(text)
-            except OSError as e:
-                print(f"[{speaker}] say failed ({e}); reconnecting", flush=True)
+
+            def attempt_say() -> tuple[bool, bytes]:
+                """Send text, drain reply briefly, return (ok, raw_reply)."""
                 try:
-                    sess.close()
-                except Exception:
-                    pass
+                    sess.send(text)
+                except OSError as e:
+                    return False, str(e).encode()
+                # Give BPQ a moment to surface any "Invalid command" /
+                # "Disconnected" line back at us.
+                reply = sess.drain(timeout=0.6)
+                if sess.looks_dropped(reply):
+                    return False, reply
+                return True, reply
+
+            ok, reply = attempt_say()
+            if not ok:
+                snippet = reply[-120:].decode("utf-8", "replace").strip()
+                print(f"[{speaker}] dropped from chat ({snippet!r}); reconnecting",
+                      flush=True)
+                if reconnect(speaker, sess):
+                    # Try one more time after rejoining.
+                    ok, reply = attempt_say()
+                    if not ok:
+                        print(f"[{speaker}] still dropped after rejoin; skip line",
+                              flush=True)
+            # Keep other sessions alive (drain idle inbound). Also
+            # check them for drop markers so a quiet-chat persona
+            # whose session died gets repaired before the director's
+            # next pick.
+            for other_name, other in sessions.items():
+                if other is sess:
+                    continue
                 try:
-                    sess.connect()
-                    sess.login_and_enter_chat()
-                    sess.say(text)
-                except Exception as e2:
-                    print(f"[{speaker}] reconnect failed: {e2}", flush=True)
-            # Keep other sessions alive (drain idle inbound).
-            for other in sessions.values():
-                if other is not sess:
-                    try:
-                        other.keepalive()
-                    except OSError:
-                        pass
+                    leaked = other.drain(timeout=0.1)
+                except OSError:
+                    leaked = b""
+                if leaked and other.looks_dropped(leaked):
+                    print(f"[{other_name}] noticed drop; reconnecting", flush=True)
+                    reconnect(other_name, other)
         gap = rng.uniform(gap_min, gap_max)
         print(f"--- thread done; quiet for {gap:.0f}s ---", flush=True)
         # Keepalive throughout the quiet period.
