@@ -149,6 +149,30 @@ Default login on every node: `admin` / `changeme` (sysop). Edit each
 
 net-sim's own topology dashboard is at <http://localhost:8080>.
 
+Live map (DEFCON-flavour situation display) at
+<http://localhost:8080/map> — shows the topology clustered by detected
+town, lights links up as they carry traffic, displays a HUD with
+event-per-second, TX-active count, collision/capture counters, and a
+host-CPU sparkline. Requires the `live-map-visualiser` branch of
+net-sim (or its successor on `main`).
+
+## QtTermTCP / BPQ FBB login
+
+Two nodes expose BPQ's FBB-style TCP port (`FBBPORT`) for QtTermTCP's
+"BPQ via FBB" connection mode — `QD0HUB` and `QA0ABS`. All others have
+only Telnet + HTTP. Credentials are identical:
+
+| Node | FBB port (host) | Telnet port (host) | Username | Password |
+|---|---|---|---|---|
+| QD0HUB-7 | 18214 | 18114 | `tom` | `packet` |
+| QA0ABS-7 | 18202 | 18102 | `tom` | `packet` |
+
+For other nodes, use QtTermTCP's plain "Telnet" mode against the host
+port listed in the table above (host port `18101` for QA0ABN, `18102`
+for QA0ABS, etc.) with the same credentials.
+
+Sysop `?PASS` challenge is `letmein` on the FBB-enabled nodes.
+
 ## Useful sanity checks
 
 From any node's Telnet console:
