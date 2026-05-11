@@ -26,6 +26,18 @@ services:
     restart: unless-stopped
     volumes:
       - ./netsim/network.yaml:/etc/sim/network.yaml:ro
+      # Read-only Docker socket — lets the visualiser's /api/stats
+      # endpoint aggregate CPU% across this sim's containers. Not
+      # required for the simulation itself; remove if you'd rather
+      # not expose the daemon socket.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # The netsim image runs as the unprivileged `sim` user (uid 999).
+    # Docker daemon's socket is typically root:docker (660); to read it
+    # without running as root, the container needs to belong to that
+    # GID. Override at runtime if your host's docker group GID is
+    # different:    DOCKER_SOCK_GID=998 docker compose up -d
+    group_add:
+      - "${DOCKER_SOCK_GID:-1001}"
     ports:
       - "8080:8080"      # net-sim web UI
       - "8100:8100"      # external attach KISS (Aberdeen channel)
