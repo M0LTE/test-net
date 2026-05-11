@@ -204,23 +204,43 @@ class Session:
         # the session. So we wait for *either* prompt indicating we're
         # in chat, then issue /N to set the nickname unconditionally.
         self.send("C QD0HUB-2")
-        deadline = time.monotonic() + 120
+        deadline = time.monotonic() + 180
         in_chat = False
+        # Markers that mean we're definitely in chat (any one is enough).
+        in_chat_markers = (
+            b"Station(s) connected",
+            b" at CHT ",
+            b"[BPQChatServer",
+            b"old session will be closed",
+        )
+        # Markers that mean the connect failed before reaching chat —
+        # NETROM didn't have the route, or BPQ parsed the command as a
+        # downlink. Fail fast so we can retry instead of waiting 180 s.
+        fast_fail_markers = (
+            b"has disappeared",
+            b"Downlink connect needs port number",
+            b"Failure with",
+            b"No route to",
+        )
         while time.monotonic() < deadline:
             self.recv_buf += self.drain(timeout=0.5)
-            if b"Please enter your Name" in self.recv_buf:
+            buf = self.recv_buf
+            if b"Please enter your Name" in buf:
                 self.send(self.p.nick)
                 time.sleep(3)
                 self.drain(timeout=2)
                 in_chat = True
                 break
-            # Reconnect-with-existing-session shows /p-style output
-            # listing connected stations, never reaching a name prompt.
-            if b"Station(s) connected" in self.recv_buf or b" at CHT " in self.recv_buf:
+            if any(m in buf for m in in_chat_markers):
                 in_chat = True
                 break
+            for fm in fast_fail_markers:
+                if fm in buf:
+                    tail = buf[-200:].decode("utf-8", "replace").strip()
+                    raise RuntimeError(f"chat connect rejected: {tail!r}")
         if not in_chat:
-            raise TimeoutError("chat did not respond in 120 s")
+            tail = self.recv_buf[-200:].decode("utf-8", "replace")
+            raise TimeoutError(f"chat did not respond in 180 s; last bytes: {tail!r}")
         # /N sets / updates the displayed nickname so other users see,
         # e.g., "m0abc:" instead of "QA0ABN:".
         self.send(f"/N {self.p.nick}")
@@ -269,8 +289,13 @@ class Session:
 # Director
 # ---------------------------------------------------------------------------
 
-def director(sessions: dict[str, Session]) -> None:
-    """Play threads at random with brisk cadence and short quiet gaps."""
+def director(sessions: dict[str, Session], stop: threading.Event) -> None:
+    """Play threads at random with brisk cadence and short quiet gaps.
+
+    Returns when `stop` is set. The check happens both between messages
+    and during the inter-thread quiet period so a STOP request lands
+    within a few seconds at worst.
+    """
     rng = random.Random(os.environ.get("CHATBOT_SEED") or None)
 
     # Pacing — overridable via env so the cadence can be tuned without
@@ -294,12 +319,14 @@ def director(sessions: dict[str, Session]) -> None:
             print(f"[{speaker}] reconnect failed: {e}", flush=True)
             return False
 
-    while True:
+    while not stop.is_set():
         thread = rng.choice(THREADS)
         print(f"\n--- starting thread ({len(thread)} lines) ---", flush=True)
         for speaker, text in thread:
-            # Per-message delay before the line lands.
-            time.sleep(rng.uniform(msg_min, msg_max))
+            # Per-message delay before the line lands. interruptible_sleep
+            # returns early if stop is set so STOP lands in <1 s.
+            if interruptible_sleep(stop, rng.uniform(msg_min, msg_max)):
+                return
             sess = sessions.get(speaker)
             if sess is None:
                 continue
@@ -347,40 +374,247 @@ def director(sessions: dict[str, Session]) -> None:
         print(f"--- thread done; quiet for {gap:.0f}s ---", flush=True)
         # Keepalive throughout the quiet period.
         end = time.monotonic() + gap
-        while time.monotonic() < end:
+        while time.monotonic() < end and not stop.is_set():
             for s in sessions.values():
                 try:
                     s.keepalive()
                 except OSError:
                     pass
-            time.sleep(5)
+            if interruptible_sleep(stop, 5):
+                return
 
 
-def main() -> int:
-    # Boot-stagger so the BPQ nodes have a chance to come up if we were
-    # started in the same compose `up`.
-    time.sleep(int(os.environ.get("CHATBOT_BOOT_DELAY", "20")))
+def interruptible_sleep(stop: threading.Event, seconds: float) -> bool:
+    """Sleep up to `seconds`, returning True if stop was set during it."""
+    return stop.wait(timeout=seconds)
 
-    sessions: dict[str, Session] = {}
-    for p in PERSONAS:
-        s = Session(p)
-        s.connect()
-        s.login_and_enter_chat()
-        sessions[p.nick] = s
-        # Slight stagger so they don't all arrive on the same second.
-        time.sleep(2)
-    print(f"all {len(sessions)} personas joined chat", flush=True)
 
-    try:
-        director(sessions)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        for s in sessions.values():
+# ---------------------------------------------------------------------------
+# Controller — owns the start/stop state machine + HTTP control plane
+# ---------------------------------------------------------------------------
+
+class Controller:
+    """State machine wrapping persona connect + director thread.
+
+    States:
+      stopped  — no sessions, director thread not running. Default at boot.
+      running  — all personas connected, director thread cycling threads.
+
+    start() and stop() are idempotent and safe to call from any thread.
+    The HTTP control plane drives them.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._stop.set()                       # default: stopped
+        self._sessions: dict[str, Session] = {}
+        self._director_thread: threading.Thread | None = None
+        self._state = "stopped"
+
+    def state(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "state": self._state,
+                "personas": [p.nick for p in PERSONAS],
+                "connected": list(self._sessions.keys()),
+            }
+
+    def start(self) -> dict[str, object]:
+        with self._lock:
+            if self._state == "running":
+                return self._snapshot_unlocked()
+            self._state = "starting"
+        try:
+            # Open all four personas in parallel — sequential start was
+            # bottlenecking on the first chat connect's L4 path setup,
+            # making the second persona's 180 s budget run out before
+            # NETROM was ready for another circuit.
+            sessions: dict[str, Session] = {}
+            errors: dict[str, Exception] = {}
+            sessions_lock = threading.Lock()
+
+            def open_one(p: Persona) -> None:
+                last_err: Exception | None = None
+                # Up to 3 attempts: NETROM aliases can be transiently
+                # missing from a station's table, especially right
+                # after a restart cycle. A 45 s backoff lets the next
+                # NODES broadcast refresh it.
+                for attempt in range(3):
+                    s = Session(p)
+                    try:
+                        s.connect()
+                        s.login_and_enter_chat()
+                        with sessions_lock:
+                            sessions[p.nick] = s
+                        return
+                    except Exception as e:
+                        last_err = e
+                        try:
+                            s.close()
+                        except Exception:
+                            pass
+                        if attempt < 2:
+                            print(f"[{p.nick}] attempt {attempt + 1} failed ({e}); retrying in 45 s",
+                                  flush=True)
+                            time.sleep(45)
+                with sessions_lock:
+                    errors[p.nick] = last_err
+
+            threads = [
+                threading.Thread(target=open_one, args=(p,), name=f"open-{p.nick}", daemon=True)
+                for p in PERSONAS
+            ]
+            for t in threads:
+                t.start()
+                time.sleep(0.5)  # tiny stagger so the BPQ telnets don't all arrive on the same ms
+            for t in threads:
+                t.join()
+            if errors:
+                # Even one persona failing is OK — the others can chat —
+                # but log every failure so it's diagnosable.
+                for nick, err in errors.items():
+                    print(f"[{nick}] join failed: {err}", flush=True)
+            if not sessions:
+                raise RuntimeError(
+                    "no personas could join chat: " +
+                    ", ".join(f"{k}={v}" for k, v in errors.items())
+                )
+            print(f"{len(sessions)}/{len(PERSONAS)} personas joined chat", flush=True)
+            with self._lock:
+                self._sessions = sessions
+                self._stop = threading.Event()
+                t = threading.Thread(
+                    target=director,
+                    args=(self._sessions, self._stop),
+                    name="director",
+                    daemon=True,
+                )
+                self._director_thread = t
+                self._state = "running"
+            t.start()
+        except Exception as e:
+            print(f"start failed: {e}", flush=True)
+            with self._lock:
+                for s in sessions.values() if 'sessions' in locals() else []:
+                    try:
+                        s.close()
+                    except Exception:
+                        pass
+                self._sessions = {}
+                self._state = "stopped"
+            raise
+        return self.state()
+
+    def stop(self) -> dict[str, object]:
+        with self._lock:
+            if self._state == "stopped":
+                return self._snapshot_unlocked()
+            self._state = "stopping"
+            self._stop.set()
+            sessions = list(self._sessions.values())
+            self._sessions = {}
+            t = self._director_thread
+            self._director_thread = None
+        # Outside lock — director may need to acquire something while
+        # exiting its loop. Wait briefly for clean exit.
+        if t is not None:
+            t.join(timeout=10)
+        for s in sessions:
             try:
                 s.close()
             except Exception:
                 pass
+        with self._lock:
+            self._state = "stopped"
+        return self.state()
+
+    def _snapshot_unlocked(self) -> dict[str, object]:
+        return {
+            "state": self._state,
+            "personas": [p.nick for p in PERSONAS],
+            "connected": list(self._sessions.keys()),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Tiny HTTP control plane
+# ---------------------------------------------------------------------------
+
+import http.server
+import json
+import urllib.parse
+
+
+def make_http_handler(ctrl: Controller):
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, fmt, *args):
+            # Quieter logs — we don't need the access log noise.
+            print("ctrl http: " + (fmt % args), flush=True)
+
+        def _send_json(self, status, payload):
+            body = json.dumps(payload).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_OPTIONS(self):
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+            self.end_headers()
+
+        def do_GET(self):
+            path = urllib.parse.urlparse(self.path).path
+            if path == "/state":
+                self._send_json(200, ctrl.state())
+            else:
+                self._send_json(404, {"error": "not found"})
+
+        def do_POST(self):
+            path = urllib.parse.urlparse(self.path).path
+            try:
+                if path == "/start":
+                    self._send_json(200, ctrl.start())
+                elif path == "/stop":
+                    self._send_json(200, ctrl.stop())
+                else:
+                    self._send_json(404, {"error": "not found"})
+            except Exception as e:
+                self._send_json(500, {"error": str(e)})
+    return Handler
+
+
+def main() -> int:
+    # Boot-stagger so the BPQ nodes have a chance to come up if we were
+    # started in the same compose `up`. Affects only the first /start.
+    time.sleep(int(os.environ.get("CHATBOT_BOOT_DELAY", "20")))
+
+    ctrl = Controller()
+    addr = ("0.0.0.0", int(os.environ.get("CHATBOT_HTTP_PORT", "8090")))
+    server = http.server.ThreadingHTTPServer(addr, make_http_handler(ctrl))
+    print(f"chatbot HTTP control on {addr[0]}:{addr[1]}", flush=True)
+
+    auto = os.environ.get("CHATBOT_AUTOSTART", "0") == "1"
+    if auto:
+        try:
+            ctrl.start()
+        except Exception as e:
+            print(f"autostart failed: {e}", flush=True)
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            ctrl.stop()
+        except Exception:
+            pass
     return 0
 
 
