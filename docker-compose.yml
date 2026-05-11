@@ -21,7 +21,7 @@ services:
   # net-sim: simulates the RF channels and inter-port path loss.
   # ------------------------------------------------------------------
   netsim:
-    image: net-sim:viz            # locally-built — adds /map visualiser + SSE events
+    image: ghcr.io/packethacking/net-sim:main
     container_name: netsim
     restart: unless-stopped
     volumes:
